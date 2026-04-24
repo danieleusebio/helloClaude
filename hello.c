@@ -3,18 +3,21 @@
 #include <semaphore.h>
 #include <unistd.h>
 
+sem_t semaphore;
+
+void* print_thread_id(void* arg);
+
 int main() {
     int N = sysconf(_SC_NPROCESSORS_ONLN);
-    int MAX_CONCURRENT = N;  // Ou ajuste para limitar, ex.: N/2
+    int MAX_CONCURRENT = N;
 
-    sem_t semaphore;
     sem_init(&semaphore, 0, MAX_CONCURRENT);
 
     pthread_t threads[N];
-    for(int i = 0; i < N; i++) {
+    for (int i = 0; i < N; i++) {
         pthread_create(&threads[i], NULL, print_thread_id, NULL);
     }
-    for(int i = 0; i < N; i++) {
+    for (int i = 0; i < N; i++) {
         pthread_join(threads[i], NULL);
     }
     printf("Fim\n");
