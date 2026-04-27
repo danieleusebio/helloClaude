@@ -8,13 +8,52 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v4
 
+      - name: Add MinGW to PATH
+        shell: pwsh
+        run: |
+          "C:\msys64\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
       - name: Build
-        run: gcc hello.c -o hello -lpthread -std=c11
+        shell: bash
+        run: gcc hello.c -o hello.exe -std=c11 -lpthread -static
 
       - name: Run
-        run: ./hello
+        shell: bash
+        run: ./hello.exe
+
+      - name: Pack NuGet
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        run: |
+          $version = "1.0.${{ github.run_number }}"
+          @"
+          <?xml version="1.0"?>
+          <package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+            <metadata>
+              <id>HelloClaude</id>
+              <version>$version</version>
+              <authors>Daniel Eusebio</authors>
+              <description>Hello Claude - demo de threads POSIX compilado para Windows (MinGW)</description>
+              <requireLicenseAcceptance>false</requireLicenseAcceptance>
+              <repository type="git" url="https://github.com/${{ github.repository }}" />
+            </metadata>
+            <files>
+              <file src="hello.exe" target="tools" />
+            </files>
+          </package>
+          "@ | Out-File -FilePath hello.nuspec -Encoding utf8
+          nuget pack hello.nuspec -OutputDirectory nupkg
+
+      - name: Publish to GitHub Packages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        run: |
+          nuget push "nupkg\*.nupkg" `
+            -Source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" `
+            -ApiKey "${{ secrets.GITHUB_TOKEN }}" `
+            -SkipDuplicate
