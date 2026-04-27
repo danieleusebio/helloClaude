@@ -1,14 +1,28 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <semaphore.h>
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <unistd.h>
+#endif
 
 sem_t semaphore;
 
 void* print_thread_id(void* arg);
 
+static int get_cpu_count(void) {
+#ifdef _WIN32
+    SYSTEM_INFO info;
+    GetSystemInfo(&info);
+    return (int)info.dwNumberOfProcessors;
+#else
+    return (int)sysconf(_SC_NPROCESSORS_ONLN);
+#endif
+}
+
 int main() {
-    int N = sysconf(_SC_NPROCESSORS_ONLN);
+    int N = get_cpu_count();
     int MAX_CONCURRENT = N;
 
     sem_init(&semaphore, 0, MAX_CONCURRENT);
